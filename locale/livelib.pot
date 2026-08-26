@@ -1,0 +1,314 @@
+# livelib.koplugin translation template.
+# Copyright (C) YEAR THE PACKAGE COPYRIGHT HOLDER
+# This file is distributed under the same license as the livelib package.
+
+msgid ""
+msgstr ""
+"Project-Id-Version: livelib.koplugin\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-23 12:00+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: _meta.lua
+msgid "Livelib"
+msgstr ""
+
+#: _meta.lua
+msgid "Sync reading status and ratings with livelib.ru"
+msgstr ""
+
+#: main.lua
+msgid ""
+"Livelib: session expired.\n"
+"\n"
+"Update cookies in Livelib → Settings → Session cookies,\n"
+"or in livelib_config.lua (DevTools → Application → Cookies → livelib.ru).\n"
+"\n"
+"You do not need to restart KOReader — changes apply immediately."
+msgstr ""
+
+#: main.lua
+msgid "Livelib: %1"
+msgstr ""
+
+#: main.lua
+msgid "Livelib: Link book"
+msgstr ""
+
+#: main.lua
+msgid "Livelib: Status — Currently reading"
+msgstr ""
+
+#: main.lua
+msgid "Livelib: Status — Finished"
+msgstr ""
+
+#: main.lua
+msgid "Livelib: Enable auto-tracking"
+msgstr ""
+
+#: main.lua
+msgid "Livelib: Disable auto-tracking"
+msgstr ""
+
+#: main.lua
+msgid "Livelib: Send rating"
+msgstr ""
+
+#: main.lua
+msgid "Livelib: open a book to link it"
+msgstr ""
+
+#: main.lua
+msgid "Livelib: link a book first"
+msgstr ""
+
+#: main.lua
+msgid "Livelib: auto-tracking enabled"
+msgstr ""
+
+#: main.lua
+msgid "Livelib: auto-tracking disabled"
+msgstr ""
+
+#: main.lua
+msgid "Livelib: link a book and open it"
+msgstr ""
+
+#: main.lua
+msgid "Livelib: link a book first via Livelib → Link book"
+msgstr ""
+
+#: main.lua
+msgid ""
+"Livelib: no rating in KOReader Book Status (★).\n"
+"Set stars and try again."
+msgstr ""
+
+#: main.lua
+msgid "Livelib: rating %1★ sent"
+msgstr ""
+
+#: livelib_api.lua
+msgid "Want to read"
+msgstr ""
+
+#: livelib_api.lua
+msgid "Finished"
+msgstr ""
+
+#: livelib_api.lua
+msgid "Currently reading"
+msgstr ""
+
+#: livelib_api.lua
+msgid "Did not finish"
+msgstr ""
+
+#: livelib_api.lua
+msgid "Status removed"
+msgstr ""
+
+#: livelib_api.lua
+msgid "Unknown status"
+msgstr ""
+
+#: livelib_api_legacy.lua
+msgid "No network connection"
+msgstr ""
+
+#: livelib_api_legacy.lua
+msgid "Network error: %1"
+msgstr ""
+
+#: livelib_api_legacy.lua
+msgid "Unexpected server response during search"
+msgstr ""
+
+#: livelib_api_legacy.lua
+msgid "Search error"
+msgstr ""
+
+#: livelib_api_legacy.lua
+msgid "Unexpected server response"
+msgstr ""
+
+#: livelib_api_legacy.lua
+msgid "Error updating status"
+msgstr ""
+
+#: livelib_api_beta.lua
+msgid "Beta API (search) is not implemented yet"
+msgstr ""
+
+#: livelib_api_beta.lua
+msgid "Beta API (set status) is not implemented yet"
+msgstr ""
+
+#: livelib_api_beta.lua
+msgid "Beta API (remove status) is not implemented yet"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Yes"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Search book on Livelib"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Search"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Cancel"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Searching on Livelib…"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Nothing found for \"%1\".\nTry another query?"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "New query"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "↩ New search"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Search results"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Book linked: %1"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Book is not linked to Livelib"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Updating status on Livelib…"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Set status \"%1\"?"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Session cookies…"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Auto-tracking for new books"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "When enabled, auto-tracking is on for linked books without an explicit per-book toggle."
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Sync rating (★)"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "When marking Finished, send the KOReader Book Status rating (1–5★ → 0–10 on Livelib)."
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Enable Wi-Fi on demand"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Use Beta API"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Use beta.api.livelib.ru (REST/JSON) instead of the classic www.livelib.ru endpoints."
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Confirm status changes"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "livelib.ru session cookies"
+msgstr ""
+
+#: livelib_menu.lua
+msgid ""
+"Copy all livelib.ru cookies from your browser:\n"
+"DevTools → Application → Cookies → livelib.ru\n"
+"(all cookies in one line: name1=value1; name2=value2)"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Save"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Cookies saved"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Book: %1"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Link book…"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Unlink book from Livelib?"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Link removed"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Auto-track progress"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Automatically set Currently reading while reading and Finished at ~100% / Book Status."
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Change status"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Send rating (%1★)"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Send rating"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Take ★ from KOReader Book Status and send to Livelib (scale 1–5 → 0–10)."
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Settings"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "About"
+msgstr ""
+
+#: livelib_menu.lua
+msgid "Livelib ✓"
+msgstr ""
