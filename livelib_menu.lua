@@ -201,6 +201,12 @@ function LivelibMenu:_linkBook(book_data, done_callback)
 
   show_notification(T(_("Book linked: %1"), book_data.title))
 
+  -- If auto-track is on, set Currently reading immediately
+  -- (do not wait for 1% or a page turn).
+  if self.plugin and self.settings:syncEnabled() then
+    self.plugin:_maybeAutoTrackProgress({ ensure = true })
+  end
+
   if done_callback then
     done_callback(book_data)
   end

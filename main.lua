@@ -216,7 +216,7 @@ function LivelibPlugin:_quickSetStatus(status_code, opts)
 
   local current = self.settings:readBookSetting(file, "status")
   local userbook_id = tonumber(self.settings:readBookSetting(file, "userbook_id")) or 0
-  -- Skip only when local status already matches *and* we are not forcing a
+  -- Skip only when local status already matches and we are not forcing a
   -- remote re-sync (stale sidecar after the book was removed on the website).
   if not opts.force and not opts.ensure and current == status_code and userbook_id ~= 0 then
     if status_code == 1 and self.settings:syncRatingEnabled() then
@@ -383,17 +383,15 @@ function LivelibPlugin:_maybeAutoTrackProgress(opts)
       percent = self.state.page / total
     end
   end
-  if not percent then
-    logger.dbg("LiveLib: auto-track skip — no percent_finished")
-    return
-  end
 
-  local pct = percent * 100
+  local pct = percent and (percent * 100) or 0
   local silent_opts = { silent = true, filename = file, ensure = opts.ensure }
-  if pct >= 99.5 then
+  if percent and pct >= 99.5 then
     logger.info("LiveLib: auto-track Finished (" .. string.format("%.1f", pct) .. "%)")
     self:_quickSetStatus(1, silent_opts)
-  elseif pct >= self.settings:markReadingAtPercent() then
+  else
+    -- Currently reading as soon as you start (link / first pages). Do not wait
+    -- for 1%: front matter is often still 0.x%
     if current ~= 2 or opts.ensure then
       logger.info("LiveLib: auto-track Currently reading (" .. string.format("%.1f", pct) .. "%)")
       self:_quickSetStatus(2, silent_opts)
@@ -491,6 +489,12 @@ function LivelibPlugin:_runPendingEnsure()
   if not self.ui.document then return end
   if not self.settings:syncEnabled() then
     self.state.ensure_remote_pending = false
+    return
+  end
+  -- Autolink/search often finishes after this 2s timer. Keep pending so a later
+  -- link or Wi-Fi restore can still set Currently reading.
+  if not self.settings:readBookSetting(self.ui.document.file, "edition_id") then
+    logger.dbg("LiveLib: auto-track wait — book not linked yet")
     return
   end
   if not (NetworkMgr:isWifiOn() or NetworkMgr:isConnected()) then
