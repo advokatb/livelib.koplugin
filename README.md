@@ -7,6 +7,7 @@ A [KOReader](https://github.com/koreader/koreader) plugin that syncs reading sta
 ## Features
 
 - Search for books on Livelib by title and author (from document metadata or manual query)
+- **Autolink** when the EPUB contains a `LIVELIB` / `LIVELIB-EDITION` identifier (on by default)
 - Link a Livelib edition to the open book (stored in the sidecar file)
 - Set status: **Want to read** / **Currently reading** / **Finished** / **Did not finish** / **Remove status**
 - Sync rating from KOReader Book Status (1–5★ → Livelib scale 0–10)
@@ -51,12 +52,14 @@ A [KOReader](https://github.com/koreader/koreader) plugin that syncs reading sta
 ### Link a book
 
 1. Open a book in KOReader
-2. **Menu → Livelib → Link book…**
-3. The plugin auto-searches by metadata and shows results (covers fill in after the list appears)
+2. If the file has a `LIVELIB` or `LIVELIB-EDITION` identifier (from Calibre), it is linked immediately
+3. Otherwise **Menu → Livelib → Link book…** searches by metadata and shows results (covers fill in after the list appears)
 4. Tap the edition you want
 5. Tap the search icon to search again
 
 Hold-tap **Book: …** to unlink.
+
+**Settings → Autolink by LIVELIB identifier** (on by default). Identifiers look like `livelib:1008958702-book-slug` and `livelib-edition:1008958702`.
 
 ### Change status
 

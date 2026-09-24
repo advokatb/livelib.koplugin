@@ -224,6 +224,14 @@ msgid "Session cookies…"
 msgstr "Cookies сесії…"
 
 #: livelib_menu.lua
+msgid "Autolink by LIVELIB identifier"
+msgstr "Автоприв’язка за ідентифікатором LIVELIB"
+
+#: livelib_menu.lua
+msgid "When a book contains a LIVELIB or LIVELIB-EDITION identifier in its metadata, link it automatically on open (on by default)."
+msgstr "Якщо в метаданих книги є ідентифікатор LIVELIB або LIVELIB-EDITION, під час відкриття книга прив’язується автоматично (увімкнено за замовчуванням)."
+
+#: livelib_menu.lua
 msgid "Auto-tracking for new books"
 msgstr "Автовідстеження для нових книг"
 

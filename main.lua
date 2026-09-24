@@ -28,6 +28,7 @@ local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local Api             = require("livelib_api")
 local LivelibMenu     = require("livelib_menu")
 local LivelibSettings = require("livelib_settings")
+local Identifiers     = require("livelib_identifiers")
 
 -- Minimum interval between automatic status sync requests (seconds)
 local MIN_AUTO_SYNC_INTERVAL = 60
@@ -43,6 +44,7 @@ function LivelibPlugin:init()
     last_auto_sync_at = 0,
     page = nil,
     ensure_remote_pending = false,
+    autolink_pending = false,
   }
 
   local settings_path = ("%s/%s"):format(
@@ -464,17 +466,49 @@ function LivelibPlugin:onDocSettingsItemsChanged(file, doc_settings)
   self:_quickSetStatus(status_code, { silent = false, force = true, filename = file })
 end
 
+function LivelibPlugin:_tryAutolink()
+  if not self.state.autolink_pending then return end
+  if not self.ui.document then return end
+  if self.settings:bookLinked() then
+    self.state.autolink_pending = false
+    return
+  end
+  if not self.settings:autoLinkByLivelibId() then
+    self.state.autolink_pending = false
+    return
+  end
+
+  local info = Identifiers.getEditionInfo(self.ui)
+  if not info or not info.edition_id then
+    self.state.autolink_pending = false
+    return
+  end
+
+  self.state.autolink_pending = false
+  logger.info("LiveLib: autolink by edition_id " .. info.edition_id)
+  self.menu:linkByIdentifier(info)
+end
+
 function LivelibPlugin:onReaderReady()
   if not self.ui.document then return end
 
   local cached_status = self.settings:getLinkedStatus()
   self.state.current_status = cached_status
   self.state.page = self.ui:getCurrentPage()
+  self.state.autolink_pending = not self.settings:bookLinked()
+      and self.settings:autoLinkByLivelibId()
   self.state.ensure_remote_pending = true
 
   if cached_status ~= nil then
     logger.info("LiveLib: restored cached status=" .. tostring(cached_status)
       .. " for " .. self.ui.document.file)
+  end
+
+  if self.state.autolink_pending then
+    -- Local sidecar write (no network). Run before the 2s ensure timer.
+    UIManager:scheduleIn(0.5, function()
+      self:_tryAutolink()
+    end)
   end
 
   -- Re-push "Currently reading" after open: sidecar may still say status=2
@@ -513,6 +547,7 @@ function LivelibPlugin:onDocumentClose()
   self.state.current_status = nil
   self.state.page = nil
   self.state.ensure_remote_pending = false
+  self.state.autolink_pending = false
 end
 
 function LivelibPlugin:addToMainMenu(menu_items)

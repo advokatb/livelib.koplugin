@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.0] - 2026-09-24
+
+### Added
+- Autolink by Calibre/OPF identifiers `livelib` (`{id}-{slug}`) and `livelib-edition` (`{id}`): on open and from **Link book…** (on by default, same UX as Goodreads).
+- Setting **Autolink by LIVELIB identifier**.
+
+### Fixed
+- Search results no longer crash on first paint: cover placeholders used an empty `CenterContainer` (`paintTo` on nil).
+
 ## [0.4.0] - 2026-09-19
 
 ### Added

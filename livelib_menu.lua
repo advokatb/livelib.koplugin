@@ -20,6 +20,7 @@ local Device            = require("device")
 local Screen = Device.screen
 
 local Api           = require("livelib_api")
+local Identifiers   = require("livelib_identifiers")
 
 --- Load this plugin's _meta.lua by path. 
 local function loadPluginMeta()
@@ -74,7 +75,31 @@ function LivelibMenu:maybeConfirm(text, callback)
   end
 end
 
+function LivelibMenu:linkByIdentifier(info, done_callback)
+  if not info or not info.edition_id then return end
+  local props = self.ui.document and self.ui.document:getProps() or {}
+  local authors = props.authors or ""
+  if type(authors) == "table" then
+    authors = table.concat(authors, ", ")
+  end
+  self:_linkBook({
+    edition_id  = info.edition_id,
+    book_id     = info.edition_id,
+    title       = (props.title and props.title ~= "") and props.title or info.edition_id,
+    authors     = authors,
+    livelib_url = info.livelib_url,
+  }, done_callback)
+end
+
 function LivelibMenu:showLinkBookDialog(force_search, done_callback)
+  if not force_search then
+    local info = Identifiers.getEditionInfo(self.ui)
+    if info and info.edition_id then
+      self:linkByIdentifier(info, done_callback)
+      return
+    end
+  end
+
   local props = self.ui.document and self.ui.document:getProps() or {}
   local auto_query = ""
   if props.title and props.title ~= "" then
@@ -343,6 +368,17 @@ function LivelibMenu:getSettingsSubMenuItems()
       callback = function()
         self:_showCookieInput()
       end,
+    },
+    {
+      text = _("Autolink by LIVELIB identifier"),
+      checked_func = function()
+        return self.settings:autoLinkByLivelibId()
+      end,
+      callback = function()
+        self.settings:setAutoLinkByLivelibId(not self.settings:autoLinkByLivelibId())
+      end,
+      keep_menu_open = true,
+      help_text = _("When a book contains a LIVELIB or LIVELIB-EDITION identifier in its metadata, link it automatically on open (on by default)."),
     },
     {
       text = _("Auto-tracking for new books"),

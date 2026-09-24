@@ -31,6 +31,7 @@ LivelibSettings.KEY_ALWAYS_SYNC  = "always_sync"
 LivelibSettings.KEY_ENABLE_WIFI  = "enable_wifi"
 LivelibSettings.KEY_SYNC_RATING  = "sync_rating"
 LivelibSettings.KEY_MARK_READING_AT = "mark_reading_at_percent"
+LivelibSettings.KEY_AUTO_LINK       = "auto_link_by_livelib_id"
 
 function LivelibSettings:new(path, ui)
   local o = setmetatable({}, self)
@@ -115,6 +116,17 @@ end
 --- Percent threshold before setting Currently reading (default 1%)
 function LivelibSettings:markReadingAtPercent()
   return self:readSetting(LivelibSettings.KEY_MARK_READING_AT) or 1
+end
+
+--- Autolink by embedded LIVELIB / LIVELIB-EDITION identifier (on by default).
+function LivelibSettings:autoLinkByLivelibId()
+  local v = self:readSetting(LivelibSettings.KEY_AUTO_LINK)
+  if v == nil then return true end
+  return v == true
+end
+
+function LivelibSettings:setAutoLinkByLivelibId(value)
+  self:updateSetting(LivelibSettings.KEY_AUTO_LINK, value == true)
 end
 
 -- ─── Per-document (sidecar) settings ─────────────────────────────────────────
