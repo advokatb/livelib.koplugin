@@ -1,8 +1,4 @@
 #!/bin/bash
-# Validate locale/*.po files before release.
-#
-# LiveLib loads .po files at runtime (lib/livelib_i18n.lua), so we do not
-# compile .mo files. This script only runs msgfmt --check-format on each PO.
 
 set -e
 

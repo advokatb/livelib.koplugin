@@ -149,10 +149,8 @@ function LivelibParser.parse_search_results(html)
     do
       local img_tag = card_html:match('<img[^>]+class="[^"]*book%-card__book%-cover%-image[^"]*"[^>]*>')
       if img_tag then
-        cover_url = get_attr(img_tag, "src")
-        if not cover_url or cover_url == "" then
-          cover_url = get_attr(img_tag, "data%-src")
-        end
+        -- Lazy-load: real image is usually data-src; src may be a 1×1 placeholder
+        cover_url = get_attr(img_tag, "data%-src") or get_attr(img_tag, "src")
       end
     end
 

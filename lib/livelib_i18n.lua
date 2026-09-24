@@ -9,7 +9,7 @@
 -- HOW TO ADD A LANGUAGE
 --   1. Copy locale/livelib.pot -> locale/<lang>.po (e.g. locale/ru.po)
 --   2. Fill in the msgstr values.
---   3. Done — no code changes needed.
+--   3. Done
 
 local logger = require("logger")
 

@@ -52,9 +52,9 @@ A [KOReader](https://github.com/koreader/koreader) plugin that syncs reading sta
 
 1. Open a book in KOReader
 2. **Menu → Livelib → Link book…**
-3. The plugin auto-searches by metadata and shows results
+3. The plugin auto-searches by metadata and shows results (covers fill in after the list appears)
 4. Tap the edition you want
-5. Tap **↩ New search** to search again
+5. Tap the search icon to search again
 
 Hold-tap **Book: …** to unlink.
 
@@ -77,7 +77,7 @@ Scale: 1★ KOReader = 2 on Livelib, 5★ = 10 (half-star steps on the site).
 
 1. Link the book
 2. Enable **Auto-track progress** in the Livelib menu (or globally: **Settings → Auto-tracking for new books**)
-3. At ≥1% progress → **Currently reading**
+3. On link (or as soon as you start turning pages) → **Currently reading**
 4. At ~100%, EndOfBook, or Book Status = complete → **Finished** (+ rating)
 
 Requests are throttled (max once per minute). **Enable Wi-Fi on demand** helps on devices that can restore Wi-Fi automatically.

@@ -6,13 +6,18 @@ local _ = require("lib/livelib_i18n").gettext
 local T = require("ffi/util").template
 local logger = require("logger")
 
-local UIManager     = require("ui/uimanager")
-local InfoMessage   = require("ui/widget/infomessage")
-local Font          = require("ui/font")
-local InputDialog   = require("ui/widget/inputdialog")
-local Menu          = require("ui/widget/menu")
-local Notification  = require("ui/widget/notification")
-local ConfirmBox    = require("ui/widget/confirmbox")
+local UIManager         = require("ui/uimanager")
+local InfoMessage       = require("ui/widget/infomessage")
+local Font              = require("ui/font")
+local InputDialog       = require("ui/widget/inputdialog")
+local SearchMenu        = require("livelib_search_menu")
+local CoverCache        = require("livelib_cover_cache")
+local Notification      = require("ui/widget/notification")
+local ConfirmBox        = require("ui/widget/confirmbox")
+local CenterContainer   = require("ui/widget/container/centercontainer")
+local Device            = require("device")
+
+local Screen = Device.screen
 
 local Api           = require("livelib_api")
 
@@ -144,42 +149,62 @@ function LivelibMenu:_doSearch(query, done_callback)
 end
 
 function LivelibMenu:_showSearchResults(query, books, done_callback)
+  -- SearchMenu keeps Menu chrome (title, back, paging, new-search icon)
+  -- and fills covers after the list is shown, like Hardcover.
   local menu_items = {}
-  for i, book in ipairs(books) do
-    local display = book.title
-    if book.authors and book.authors ~= "" then
-      display = display .. "\n" .. book.authors
-    end
-    if book.rating and book.rating ~= "" then
-      display = display .. " [" .. book.rating .. "]"
-    end
+  for _, book in ipairs(books) do
     table.insert(menu_items, {
-      text      = display,
+      text = book.title or "",
+      title = book.title or "",
+      authors = book.authors or "",
+      rating = book.rating,
+      cover_url = book.cover_url,
+      cover_path = CoverCache.cached_path(book.edition_id),
+      edition_id = book.edition_id,
       book_data = book,
     })
   end
 
-  table.insert(menu_items, {
-    text = _("↩ New search"),
-    is_search = true,
-  })
-
   local results_menu
-  results_menu = Menu:new {
-    title      = _("Search results"),
+  local dialog
+  local closed = false
+  local function close_results()
+    if closed then return end
+    closed = true
+    if results_menu then
+      results_menu:_haltCoverLoads()
+    end
+    if dialog then
+      UIManager:close(dialog)
+    end
+  end
+
+  results_menu = SearchMenu:new {
+    title = _("Search results"),
     item_table = menu_items,
-    fullscreen = true,
-    onMenuSelect = function(menu_self, item)
-      if item.is_search then
-        UIManager:close(results_menu)
-        self:_showSearchInput(query, done_callback)
-        return
-      end
-      UIManager:close(results_menu)
+    items_per_page = 8,
+    title_bar_left_icon = "appbar.search",
+    onLeftButtonTap = function()
+      close_results()
+      self:_showSearchInput(query, done_callback)
+    end,
+    onMenuSelect = function(_, item)
+      if not item or not item.book_data then return end
+      close_results()
       self:_linkBook(item.book_data, done_callback)
     end,
+    close_callback = function()
+      close_results()
+    end,
   }
-  UIManager:show(results_menu)
+
+  dialog = CenterContainer:new {
+    dimen = Screen:getSize(),
+    results_menu,
+  }
+  results_menu._host = dialog
+  results_menu.show_parent = dialog
+  UIManager:show(dialog)
 end
 
 function LivelibMenu:_linkBook(book_data, done_callback)
