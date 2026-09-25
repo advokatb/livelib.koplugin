@@ -61,7 +61,7 @@ local function report_error(self, err)
   if self.on_error then self.on_error(err) end
 end
 
-function LivelibApiLegacy:_request(method, url, body, extra_headers)
+function LivelibApiLegacy:_request(method, url, body, extra_headers, extra_req)
   if not NetworkMgr:isConnected() then return nil, nil, nil end
 
   local sink = {}
@@ -82,6 +82,11 @@ function LivelibApiLegacy:_request(method, url, body, extra_headers)
     sink    = ltn12.sink.table(sink),
     source  = body and ltn12.source.string(body) or nil,
   }
+  if extra_req then
+    for k, v in pairs(extra_req) do
+      request_params[k] = v
+    end
+  end
 
   logger.info("LiveLib Legacy: " .. method .. " " .. url)
   local _, code, resp_headers, _ = http.request(request_params)
@@ -243,6 +248,144 @@ function LivelibApiLegacy:remove_status(edition_id, userbook_id)
   -- In legacy API, removing status is status_code = -2
   local result = self:set_status(edition_id, -2, userbook_id, 0)
   return {ok = result.ok, error_text = result.error_text}
+end
+
+-- ─── Quotes ──────────────────────────────────────────────────────────────────
+-- /quote/save/{edition_id} expects multipart/form-data. With X-Requested-With
+-- (all our legacy calls) the server returns JSON 200
+-- {"error_code":0,"message":"Цитата успешно добавлена","userquote_id":…}.
+-- A non-AJAX form POST may still 302 to /quote/editmy/{id}.
+-- quote[guid] is not validated server-side; we generate it locally.
+
+local function random_hex32()
+  local chars = "0123456789abcdef"
+  local t = {}
+  for i = 1, 32 do
+    local idx = math.random(1, 16)
+    t[i] = chars:sub(idx, idx)
+  end
+  return table.concat(t)
+end
+
+-- multipart/form-data body from an ordered array of {name=, value=} fields.
+-- Text fields only (no file uploads) — good enough for this form.
+local function encode_multipart(fields, boundary)
+  local parts = {}
+  for _, field in ipairs(fields) do
+    table.insert(parts, "--" .. boundary .. "\r\n")
+    table.insert(parts, 'Content-Disposition: form-data; name="' .. field.name .. '"\r\n\r\n')
+    table.insert(parts, tostring(field.value or "") .. "\r\n")
+  end
+  table.insert(parts, "--" .. boundary .. "--\r\n")
+  return table.concat(parts)
+end
+
+--- Publish a quote for edition_id.
+-- @param edition_id  edition ID (same id used for set_status)
+-- @param text        quote text (required)
+-- @param opts        optional: { author, work, tags, lang_id (default "119" = Russian),
+--                     access (default "0" = everyone) }
+-- @return { ok, quote_id, quote_url, error_text }
+function LivelibApiLegacy:create_quote(edition_id, text, opts)
+  if not edition_id then return {ok = false, error_text = "edition_id is nil"} end
+  if not text or text == "" then return {ok = false, error_text = _("Quote text is empty")} end
+  opts = opts or {}
+
+  local boundary = "----LivelibKOReaderBoundary" .. random_hex32()
+  local body = encode_multipart({
+    { name = "page_referer",             value = BASE_URL .. "/my/quotes" },
+    { name = "is_new",                   value = "yes" },
+    { name = "edition_id",               value = tostring(edition_id) },
+    { name = "quote[author]",            value = opts.author or "" },
+    { name = "quote[work]",              value = opts.work or "" },
+    { name = "quote[tags]",              value = opts.tags or "" },
+    { name = "quote[lang_id]",           value = opts.lang_id or "119" },
+    { name = "quote[data]",              value = text },
+    { name = "quote[character_id]",      value = "" },
+    { name = "quote[access]",            value = opts.access or "0" },
+    { name = "soc_settings[vkontakte]",  value = "0" },
+    { name = "soc_settings[twitter]",    value = "0" },
+    { name = "quote[guid]",              value = random_hex32() },
+    { name = "submitted-status",         value = "0" },
+    { name = "is_new_design",            value = "group" },
+  }, boundary)
+
+  local url = BASE_URL .. "/quote/save/" .. tostring(edition_id)
+  local code, response, headers = self:_request("POST", url, body, {
+    ["Content-Type"] = "multipart/form-data; boundary=" .. boundary,
+    ["Referer"]       = BASE_URL .. "/quote/create/" .. tostring(edition_id),
+  }, { redirect = false })
+
+  if not code then
+    local msg = _("No network connection")
+    report_error(self, msg)
+    return {ok = false, error_text = msg}
+  end
+
+  local location = headers and (headers["location"] or headers["Location"])
+  logger.info("LiveLib quote: HTTP " .. tostring(code)
+    .. " loc=" .. tostring(location))
+
+  -- A 302 to /authentication means the session cookie is dead, not success.
+  if (code == 302 or code == 303) and location
+      and location:find("/authentication", 1, true) then
+    report_error(self, "session_expired")
+    return {ok = false, error_text = "session_expired"}
+  end
+
+  -- AJAX (X-Requested-With) gets JSON 200:
+  -- {"error_code":0,"message":"Цитата успешно добавлена","userquote_id":...}
+  -- A browser form POST may still 302 to /quote/editmy/{id}.
+  if type(response) == "string" and response:match("^%s*{") then
+    local ok_json, parsed = pcall(json.decode, response)
+    if ok_json and type(parsed) == "table" then
+      if parsed.error_code and tonumber(parsed.error_code) ~= 0 then
+        local msg = parsed.message or parsed.text or _("Error updating status")
+        report_error(self, msg)
+        return {ok = false, error_text = msg}
+      end
+      local qid = parsed.userquote_id or parsed.quote_id
+      if tonumber(parsed.error_code) == 0 or qid then
+        qid = qid and tostring(qid) or nil
+        return {
+          ok = true,
+          quote_id = qid,
+          quote_url = qid and (BASE_URL .. "/quote/" .. qid) or nil,
+          error_text = nil,
+        }
+      end
+    end
+  end
+
+  if (code == 302 or code == 303) and location then
+    local quote_id = location:match("/quote/editmy/(%d+)") or location:match("/quote/(%d+)")
+    return {
+      ok = true,
+      quote_id = quote_id,
+      quote_url = location,
+      error_text = nil,
+    }
+  end
+
+  if self:_is_session_expired(code, response) then
+    report_error(self, "session_expired")
+    return {ok = false, error_text = "session_expired"}
+  end
+
+  local html_id = type(response) == "string"
+    and (response:match("/quote/editmy/(%d+)") or response:match("/quote/(%d+)"))
+  if code == 200 and html_id then
+    return {
+      ok = true,
+      quote_id = html_id,
+      quote_url = BASE_URL .. "/quote/" .. html_id,
+      error_text = nil,
+    }
+  end
+
+  local msg = T(_("Network error: %1"), tostring(code))
+  report_error(self, msg)
+  return {ok = false, error_text = msg}
 end
 
 return LivelibApiLegacy

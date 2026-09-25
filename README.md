@@ -11,6 +11,7 @@ A [KOReader](https://github.com/koreader/koreader) plugin that syncs reading sta
 - Link a Livelib edition to the open book (stored in the sidecar file)
 - Set status: **Want to read** / **Currently reading** / **Finished** / **Did not finish** / **Remove status**
 - Sync rating from KOReader Book Status (1–5★ → Livelib scale 0–10)
+- Send highlights to Livelib as quotes (**Send to Livelib** in the highlight dialog)
 - Auto-tracking: sets **Currently reading** while reading and **Finished** at ~100% / book completion (+ rating)
 - Optional **Beta API** (`beta.api.livelib.ru`) — enable in **Settings → Use Beta API**
 - Automatic DDoS-Guard cookie rotation (`__ddg*` on each response)
@@ -75,6 +76,14 @@ The current status is cached in the sidecar and restored when you reopen the boo
 3. Or manually: **Menu → Livelib → Send rating (N★)**
 
 Scale: 1★ KOReader = 2 on Livelib, 5★ = 10 (half-star steps on the site).
+
+### Quotes
+
+1. Link the book to a Livelib edition
+2. Select text in the reader
+3. In the highlight dialog tap **Send to Livelib**
+
+The quote is posted as public (`access=0`) with the linked book title/authors. Quote create always uses the classic www.livelib.ru form, even if **Use Beta API** is enabled.
 
 ### Auto-tracking
 

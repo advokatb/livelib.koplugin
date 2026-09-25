@@ -48,6 +48,7 @@ jobs:
             --exclude="livelib_config.lua" --exclude="crash.log" \
             --exclude=".git*" --exclude=".github" \
             --exclude="docs" \
+            --exclude="_quotes" \
             --exclude="TODO.md" --exclude="CHANGELOG.md" \
             --exclude="scripts" \
             --exclude="$PKG_ROOT" \

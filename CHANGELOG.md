@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.6.0] - 2026-09-24
+
+### Added
+- Send a highlight to Livelib as a quote: **Send to Livelib** in the highlight dialog (linked books only). Uses the classic `/quote/save/{edition_id}` multipart endpoint (even if Beta API is on).
+
 ## [0.5.0] - 2026-09-24
 
 ### Added

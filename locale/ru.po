@@ -328,3 +328,19 @@ msgstr "О плагине"
 #: livelib_menu.lua
 msgid "Livelib ✓"
 msgstr "Livelib ✓"
+
+#: main.lua
+msgid "Send to Livelib"
+msgstr "Отправить на Livelib"
+
+#: main.lua
+msgid "Livelib: no text selected"
+msgstr "Livelib: текст не выделен"
+
+#: main.lua
+msgid "Livelib: quote sent"
+msgstr "Livelib: цитата отправлена"
+
+#: livelib_api_legacy.lua
+msgid "Quote text is empty"
+msgstr "Текст цитаты пуст"

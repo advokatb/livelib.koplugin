@@ -68,4 +68,13 @@ function LivelibApi:remove_status(edition_id, userbook_id)
   return self:_get_backend():remove_status(edition_id, userbook_id)
 end
 
+--- Publish a quote. Always uses the legacy backend — quote creation has only
+--- been reverse-engineered against www.livelib.ru; the beta API's equivalent
+--- (if any) is unconfirmed, so this ignores the user's beta/legacy toggle.
+function LivelibApi:create_quote(edition_id, text, opts)
+  LivelibApiLegacy.settings = self.settings
+  LivelibApiLegacy.on_error = self.on_error
+  return LivelibApiLegacy:create_quote(edition_id, text, opts)
+end
+
 return LivelibApi

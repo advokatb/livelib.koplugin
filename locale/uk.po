@@ -350,3 +350,19 @@ msgstr "Про програму"
 #: livelib_menu.lua
 msgid "Livelib ✓"
 msgstr "Livelib ✓"
+
+#: main.lua
+msgid "Send to Livelib"
+msgstr "Надіслати на Livelib"
+
+#: main.lua
+msgid "Livelib: no text selected"
+msgstr "Livelib: текст не виділено"
+
+#: main.lua
+msgid "Livelib: quote sent"
+msgstr "Livelib: цитату надіслано"
+
+#: livelib_api_legacy.lua
+msgid "Quote text is empty"
+msgstr "Текст цитати порожній"

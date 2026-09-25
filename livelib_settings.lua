@@ -201,6 +201,12 @@ function LivelibSettings:getLinkedTitle()
   return self:readBookSetting(file, "title")
 end
 
+function LivelibSettings:getLinkedAuthors()
+  local file = self:_currentFile()
+  if not file then return nil end
+  return self:readBookSetting(file, "authors")
+end
+
 function LivelibSettings:getLinkedStatus()
   local file = self:_currentFile()
   if not file then return nil end

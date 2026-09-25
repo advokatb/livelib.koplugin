@@ -320,3 +320,19 @@ msgstr ""
 #: livelib_menu.lua
 msgid "Livelib ✓"
 msgstr ""
+
+#: main.lua
+msgid "Send to Livelib"
+msgstr ""
+
+#: main.lua
+msgid "Livelib: no text selected"
+msgstr ""
+
+#: main.lua
+msgid "Livelib: quote sent"
+msgstr ""
+
+#: livelib_api_legacy.lua
+msgid "Quote text is empty"
+msgstr ""

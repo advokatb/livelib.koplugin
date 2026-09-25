@@ -20,6 +20,7 @@ local T           = require("ffi/util").template
 local Device      = require("device")
 local NetworkMgr  = require("ui/network/manager")
 local UIManager   = require("ui/uimanager")
+local util        = require("util")
 
 local InfoMessage  = require("ui/widget/infomessage")
 local Notification = require("ui/widget/notification")
@@ -67,7 +68,60 @@ function LivelibPlugin:init()
   self:onDispatcherRegisterActions()
   self.ui.menu:registerToMainMenu(self)
 
+  -- self.ui.highlight (ReaderHighlight) only exists in the reader, not the
+  -- file browser — is_doc_only is false so init() runs in both.
+  if self.ui.highlight then
+    self.ui.highlight:addToHighlightDialog("90_livelib_send_quote", function(this)
+      return {
+        text = _("Send to Livelib"),
+        show_in_highlight_dialog_func = function()
+          return self.settings:bookLinked()
+        end,
+        callback = function()
+          local selected = this.selected_text and this.selected_text.text
+          this:onClose()
+          self:_sendQuote(selected)
+        end,
+      }
+    end)
+  end
+
   logger.info("LiveLib: plugin initialized")
+end
+
+--- Send selected text to Livelib as a quote for the currently linked book.
+function LivelibPlugin:_sendQuote(raw_text)
+  local file = self.ui.document and self.ui.document.file
+  if not file then return end
+
+  local edition_id = self.settings:getLinkedEditionId()
+  if not edition_id then
+    UIManager:show(InfoMessage:new {
+      text = _("Livelib: link a book first via Livelib → Link book")
+    })
+    return
+  end
+
+  local text = raw_text and util.cleanupSelectedText(raw_text) or ""
+  if text == "" then
+    UIManager:show(InfoMessage:new { text = _("Livelib: no text selected") })
+    return
+  end
+
+  self:_withWifi(function()
+    local result = Api:create_quote(edition_id, text, {
+      author = self.settings:getLinkedAuthors(),
+      work   = self.settings:getLinkedTitle(),
+    })
+    if result and result.ok then
+      UIManager:show(Notification:new {
+        text = _("Livelib: quote sent"),
+        timeout = 3,
+      })
+    end
+    -- On failure, Api.on_error (-> LivelibPlugin:_handleApiError) already
+    -- surfaces session_expired / network error messages.
+  end)
 end
 
 function LivelibPlugin:_handleApiError(err)
