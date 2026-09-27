@@ -464,6 +464,11 @@ DevTools → Application → Cookies → livelib.ru
           if value and value ~= "" then
             self.settings:setCookie(value)
             show_notification(_("Cookies saved"))
+            if self.plugin then
+              UIManager:scheduleIn(0.5, function()
+                self.plugin:_flushQuoteQueue()
+              end)
+            end
           end
         end,
       },

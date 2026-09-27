@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.7.0] - 2026-09-25
+
+### Added
+- Offline quote queue: **Send to Livelib** without Wi-Fi stores the highlight in plugin settings and posts it on **Network connected** (or after cookies are saved). Each quote is kept separately (not coalesced).
+
+## [0.6.1] - 2026-09-25
+
+### Fixed
+- Sending a quote no longer shows a fake network error: `/quote/save` returns JSON `200` (`error_code: 0`) for AJAX, not a `302` redirect.
+
 ## [0.6.0] - 2026-09-24
 
 ### Added

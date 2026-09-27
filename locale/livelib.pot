@@ -333,6 +333,14 @@ msgstr ""
 msgid "Livelib: quote sent"
 msgstr ""
 
+#: main.lua
+msgid "Livelib: saved offline · will sync when connected"
+msgstr ""
+
+#: main.lua
+msgid "Livelib: sent %1 queued quote(s)"
+msgstr ""
+
 #: livelib_api_legacy.lua
 msgid "Quote text is empty"
 msgstr ""

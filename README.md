@@ -11,7 +11,7 @@ A [KOReader](https://github.com/koreader/koreader) plugin that syncs reading sta
 - Link a Livelib edition to the open book (stored in the sidecar file)
 - Set status: **Want to read** / **Currently reading** / **Finished** / **Did not finish** / **Remove status**
 - Sync rating from KOReader Book Status (1–5★ → Livelib scale 0–10)
-- Send highlights to Livelib as quotes (**Send to Livelib** in the highlight dialog)
+- Send highlights to Livelib as quotes (**Send to Livelib** in the highlight dialog; queued if offline)
 - Auto-tracking: sets **Currently reading** while reading and **Finished** at ~100% / book completion (+ rating)
 - Optional **Beta API** (`beta.api.livelib.ru`) — enable in **Settings → Use Beta API**
 - Automatic DDoS-Guard cookie rotation (`__ddg*` on each response)
@@ -85,6 +85,8 @@ Scale: 1★ KOReader = 2 on Livelib, 5★ = 10 (half-star steps on the site).
 
 The quote is posted as public (`access=0`) with the linked book title/authors. Quote create always uses the classic www.livelib.ru form, even if **Use Beta API** is enabled.
 
+If Wi-Fi is off, the highlight is saved in the plugin queue and sent when the device is online again (notification: **saved offline · will sync when connected**). The radio is not turned on just to send a quote.
+
 ### Auto-tracking
 
 1. Link the book
@@ -108,7 +110,7 @@ In **Menu → Settings → Gestures**, you can assign:
 
 | Data | Location |
 |------|----------|
-| Session cookies, plugin settings | `<koreader_dir>/settings/livelib_settings.lua` |
+| Session cookies, plugin settings, offline quote queue | `<koreader_dir>/settings/livelib_settings.lua` |
 | Book link (edition_id, userbook_id, status, rating, sync) | Sidecar (`*.sdr/metadata.*.lua`, key `livelib`) |
 | KOReader rating / status | Sidecar `summary.rating` / `summary.status` |
 | Secret cookies (manual config) | `livelib_config.lua` (gitignored) |

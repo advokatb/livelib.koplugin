@@ -32,6 +32,7 @@ LivelibSettings.KEY_ENABLE_WIFI  = "enable_wifi"
 LivelibSettings.KEY_SYNC_RATING  = "sync_rating"
 LivelibSettings.KEY_MARK_READING_AT = "mark_reading_at_percent"
 LivelibSettings.KEY_AUTO_LINK       = "auto_link_by_livelib_id"
+LivelibSettings.KEY_QUOTE_QUEUE     = "quote_queue"
 
 function LivelibSettings:new(path, ui)
   local o = setmetatable({}, self)
@@ -127,6 +128,62 @@ end
 
 function LivelibSettings:setAutoLinkByLivelibId(value)
   self:updateSetting(LivelibSettings.KEY_AUTO_LINK, value == true)
+end
+
+-- ─── Offline quote queue ─────────────────────────────────────────────────────
+-- Each highlight is its own row.
+
+function LivelibSettings:getQuoteQueue()
+  local q = self:readSetting(LivelibSettings.KEY_QUOTE_QUEUE)
+  if type(q) ~= "table" then return {} end
+  local list = {}
+  for _, item in ipairs(q) do
+    if type(item) == "table" and item.text and item.text ~= "" and item.edition_id then
+      table.insert(list, item)
+    end
+  end
+  if #list == 0 then
+    for _, item in pairs(q) do
+      if type(item) == "table" and item.text and item.text ~= "" and item.edition_id then
+        table.insert(list, item)
+      end
+    end
+    table.sort(list, function(a, b)
+      return (tonumber(a.queued_at) or 0) < (tonumber(b.queued_at) or 0)
+    end)
+  end
+  return list
+end
+
+function LivelibSettings:quoteQueueSize()
+  return #self:getQuoteQueue()
+end
+
+function LivelibSettings:setQuoteQueue(list)
+  self:updateSetting(LivelibSettings.KEY_QUOTE_QUEUE, list or {})
+end
+
+--- Append a quote. Identical text+edition as the last row is ignored (double-tap).
+function LivelibSettings:enqueueQuote(item)
+  if type(item) ~= "table" or not item.edition_id or not item.text or item.text == "" then
+    return nil
+  end
+  local q = self:getQuoteQueue()
+  local last = q[#q]
+  if last and tostring(last.edition_id) == tostring(item.edition_id)
+      and last.text == item.text then
+    return last
+  end
+  item.id = item.id or (tostring(os.time()) .. "-" .. tostring(math.random(100000, 999999)))
+  item.edition_id = tostring(item.edition_id)
+  item.author = item.author or ""
+  item.work = item.work or ""
+  item.queued_at = item.queued_at or os.time()
+  table.insert(q, item)
+  self:setQuoteQueue(q)
+  logger.info("LiveLib: queued quote edition_id=" .. item.edition_id
+    .. " chars=" .. tostring(#item.text) .. " queue=" .. tostring(#q))
+  return item
 end
 
 -- ─── Per-document (sidecar) settings ─────────────────────────────────────────

@@ -363,6 +363,14 @@ msgstr "Livelib: текст не виділено"
 msgid "Livelib: quote sent"
 msgstr "Livelib: цитату надіслано"
 
+#: main.lua
+msgid "Livelib: saved offline · will sync when connected"
+msgstr "Livelib: збережено офлайн · надішлеться після підключення"
+
+#: main.lua
+msgid "Livelib: sent %1 queued quote(s)"
+msgstr "Livelib: надіслано цитат з черги: %1"
+
 #: livelib_api_legacy.lua
 msgid "Quote text is empty"
 msgstr "Текст цитати порожній"

@@ -46,6 +46,8 @@ function LivelibPlugin:init()
     page = nil,
     ensure_remote_pending = false,
     autolink_pending = false,
+    flushing_quotes = false,
+    last_offline_notice_at = 0,
   }
 
   local settings_path = ("%s/%s"):format(
@@ -90,6 +92,8 @@ function LivelibPlugin:init()
 end
 
 --- Send selected text to Livelib as a quote for the currently linked book.
+-- Always persist first so a suspend/crash during POST cannot drop the highlight.
+-- Offline: no Wi-Fi prompt. Flush on NetworkConnected / Resume / cookie save.
 function LivelibPlugin:_sendQuote(raw_text)
   local file = self.ui.document and self.ui.document.file
   if not file then return end
@@ -108,20 +112,148 @@ function LivelibPlugin:_sendQuote(raw_text)
     return
   end
 
-  self:_withWifi(function()
-    local result = Api:create_quote(edition_id, text, {
-      author = self.settings:getLinkedAuthors(),
-      work   = self.settings:getLinkedTitle(),
-    })
-    if result and result.ok then
-      UIManager:show(Notification:new {
-        text = _("Livelib: quote sent"),
-        timeout = 3,
-      })
+  self.settings:enqueueQuote({
+    edition_id = tostring(edition_id),
+    text       = text,
+    author     = self.settings:getLinkedAuthors() or "",
+    work       = self.settings:getLinkedTitle() or "",
+  })
+
+  if NetworkMgr:isConnected() then
+    self:_flushQuoteQueue()
+    if self.settings:quoteQueueSize() > 0 then
+      local cookie = self.settings:getCookie()
+      if not cookie or cookie == "" then
+        self:_handleApiError("session_expired")
+      end
     end
-    -- On failure, Api.on_error (-> LivelibPlugin:_handleApiError) already
-    -- surfaces session_expired / network error messages.
+    return
+  end
+
+  self:_notifyQuoteQueued()
+
+  if NetworkMgr:isWifiOn() then
+    local function after_link()
+      self:_flushQuoteQueue()
+    end
+    if NetworkMgr.scheduleConnectivityCheck then
+      NetworkMgr:scheduleConnectivityCheck(after_link)
+    else
+      UIManager:scheduleIn(4, after_link)
+    end
+  end
+end
+
+function LivelibPlugin:_notifyQuoteQueued()
+  local now = os.time()
+  if now - (self.state.last_offline_notice_at or 0) < 8 then
+    return
+  end
+  self.state.last_offline_notice_at = now
+  UIManager:show(Notification:new {
+    text = _("Livelib: saved offline · will sync when connected"),
+    timeout = 3,
+  })
+end
+
+function LivelibPlugin:_flushQuoteQueue()
+  if self.state.flushing_quotes then return end
+  if not NetworkMgr:isConnected() then return end
+  local q = self.settings:getQuoteQueue()
+  if #q == 0 then return end
+
+  local cookie = self.settings:getCookie()
+  if not cookie or cookie == "" then
+    logger.info("LiveLib: quote queue wait — no session cookie")
+    return
+  end
+
+  self.state.flushing_quotes = true
+  local prev_err = Api.on_error
+  Api.on_error = nil
+
+  local sent = 0
+  local sent_ids = {}
+  local remain = {}
+  local stop = false
+  local session_expired = false
+
+  local ok_run, run_err = pcall(function()
+    for _, item in ipairs(q) do
+      if stop then
+        table.insert(remain, item)
+      else
+        local result = Api:create_quote(item.edition_id, item.text, {
+          author = item.author,
+          work   = item.work,
+        })
+        if result and result.ok then
+          sent = sent + 1
+          if item.id then sent_ids[item.id] = true end
+        else
+          -- Keep every failed quote. Never drop text because of a 403/5xx.
+          table.insert(remain, item)
+          local err = result and result.error_text
+          stop = true
+          session_expired = (err == "session_expired")
+        end
+      end
+    end
   end)
+
+  Api.on_error = prev_err
+
+  if not ok_run then
+    logger.warn("LiveLib: quote flush crashed: " .. tostring(run_err))
+    remain = {}
+    for _, item in ipairs(q) do
+      if not (item.id and sent_ids[item.id]) then
+        table.insert(remain, item)
+      end
+    end
+  end
+
+  -- Re-read disk so a quote saved during POST is not overwritten.
+  local latest = self.settings:getQuoteQueue()
+  local merged = {}
+  local seen = {}
+  local function take(item)
+    if not item then return end
+    if item.id and sent_ids[item.id] then return end
+    if item.id and seen[item.id] then return end
+    table.insert(merged, item)
+    if item.id then seen[item.id] = true end
+  end
+  for _, item in ipairs(remain) do take(item) end
+  for _, item in ipairs(latest) do take(item) end
+  self.settings:setQuoteQueue(merged)
+  self.state.flushing_quotes = false
+
+  local added_during = #merged > #remain
+
+  if session_expired then
+    self:_handleApiError("session_expired")
+  elseif sent > 0 then
+    logger.info("LiveLib: flushed " .. tostring(sent) .. " queued quote(s)")
+    local msg
+    if sent == 1 and #q == 1 and not added_during then
+      msg = _("Livelib: quote sent")
+    else
+      msg = T(_("Livelib: sent %1 queued quote(s)"), tostring(sent))
+    end
+    UIManager:show(Notification:new {
+      text = msg,
+      timeout = 3,
+    })
+  elseif #merged > 0 then
+    self:_notifyQuoteQueued()
+  end
+
+  if added_during and not session_expired and NetworkMgr:isConnected() then
+    UIManager:scheduleIn(0.3, function()
+      self:_flushQuoteQueue()
+    end)
+  end
 end
 
 function LivelibPlugin:_handleApiError(err)
@@ -570,6 +702,12 @@ function LivelibPlugin:onReaderReady()
   UIManager:scheduleIn(2, function()
     self:_runPendingEnsure()
   end)
+
+  if self.settings:quoteQueueSize() > 0 then
+    UIManager:scheduleIn(3, function()
+      self:_flushQuoteQueue()
+    end)
+  end
 end
 
 function LivelibPlugin:_runPendingEnsure()
@@ -595,6 +733,17 @@ end
 
 function LivelibPlugin:onNetworkConnected()
   self:_runPendingEnsure()
+  UIManager:scheduleIn(1, function()
+    self:_flushQuoteQueue()
+  end)
+end
+
+function LivelibPlugin:onResume()
+  if self.settings:quoteQueueSize() > 0 then
+    UIManager:scheduleIn(2, function()
+      self:_flushQuoteQueue()
+    end)
+  end
 end
 
 function LivelibPlugin:onDocumentClose()
