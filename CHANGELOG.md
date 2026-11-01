@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.1] - 2026-10-02
+
+### Fixed
+- Finished / status toasts no longer fire twice after Book Status + returning to
+  the file manager (Reader and FileManager both received the same event).
+- Background work after a Wi-Fi wait does not use the document if that book was
+  closed or replaced.
+
 ## [0.7.0] - 2026-09-25
 
 ### Added

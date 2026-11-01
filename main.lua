@@ -33,6 +33,9 @@ local Identifiers     = require("livelib_identifiers")
 
 -- Minimum interval between automatic status sync requests (seconds)
 local MIN_AUTO_SYNC_INTERVAL = 60
+local NOTICE_DEDUP_SEC = 10
+local last_status_notice = {}
+local status_inflight = {}
 
 local LivelibPlugin = WidgetContainer:extend {
   name         = "livelib",
@@ -404,9 +407,10 @@ function LivelibPlugin:_quickSetStatus(status_code, opts)
 
   local current = self.settings:readBookSetting(file, "status")
   local userbook_id = tonumber(self.settings:readBookSetting(file, "userbook_id")) or 0
-  -- Skip only when local status already matches and we are not forcing a
-  -- remote re-sync (stale sidecar after the book was removed on the website).
-  if not opts.force and not opts.ensure and current == status_code and userbook_id ~= 0 then
+  -- Skip when local status already matches. `ensure` on open still re-pushes
+  -- so a site-side delete is restored. Book Status / EndOfBook must not POST
+  -- twice (FileManager + Reader both receive the same event).
+  if not opts.ensure and current == status_code and userbook_id ~= 0 then
     if status_code == 1 and self.settings:syncRatingEnabled() then
       local new_rating = self:_resolveRating(file, 1)
       local old_rating = tonumber(self.settings:readBookSetting(file, "rating")) or 0
@@ -418,12 +422,24 @@ function LivelibPlugin:_quickSetStatus(status_code, opts)
     end
   end
 
-  self:_withWifi(function()
+  local lock = tostring(file) .. ":" .. tostring(status_code)
+  if status_inflight[lock] then
+    return
+  end
+  status_inflight[lock] = true
+
+  if not self:_withWifi(function()
+    if opts.silent and not (self.ui.document and self.ui.document.file == file) then
+      logger.info("LiveLib: skip after Wi-Fi — document closed or replaced")
+      status_inflight[lock] = nil
+      return
+    end
     local edition_id  = self.settings:readBookSetting(file, "edition_id")
     local userbook_id = self.settings:readBookSetting(file, "userbook_id") or 0
     local rating      = self:_resolveRating(file, status_code)
 
     local result = Api:set_status(edition_id, status_code, userbook_id, rating)
+    status_inflight[lock] = nil
     if result and result.ok then
       local update = {
         userbook_id = result.userbook_id or userbook_id,
@@ -442,13 +458,20 @@ function LivelibPlugin:_quickSetStatus(status_code, opts)
       -- Book is already on the server — skip the open-book ensure re-push.
       self.state.ensure_remote_pending = false
       if not opts.silent then
-        UIManager:show(Notification:new {
-          text = T(_("Livelib: %1"), Api:statusText(status_code)),
-          timeout = 3,
-        })
+        local now = os.time()
+        local prev = last_status_notice[file]
+        if not (prev and prev.code == status_code and now - (prev.at or 0) < NOTICE_DEDUP_SEC) then
+          last_status_notice[file] = { code = status_code, at = now }
+          UIManager:show(Notification:new {
+            text = T(_("Livelib: %1"), Api:statusText(status_code)),
+            timeout = 3,
+          })
+        end
       end
     end
-  end, opts.silent)
+  end, opts.silent) then
+    status_inflight[lock] = nil
+  end
 end
 
 --- Send current KOReader rating to Livelib (Finished status).
@@ -502,7 +525,7 @@ end
 function LivelibPlugin:_withWifi(callback, silent)
   if NetworkMgr:isWifiOn() or NetworkMgr:isConnected() then
     callback()
-    return
+    return true
   end
 
   if self.settings:enableWifiOnDemand()
@@ -515,16 +538,17 @@ function LivelibPlugin:_withWifi(callback, silent)
       G_reader_settings:saveSetting("wifi_was_on", original_on)
       callback()
     end)
-    return
+    return true
   end
 
   if silent then
-    return
+    return false
   end
 
   NetworkMgr:promptWifiOn(function()
     callback()
   end)
+  return true
 end
 
 function LivelibPlugin:_canAutoSync(filename, opts)
@@ -599,7 +623,8 @@ function LivelibPlugin:onPosUpdate(_, page)
 end
 
 function LivelibPlugin:onEndOfBook()
-  local file = self.ui.document and self.ui.document.file
+  if not self.ui.document then return end
+  local file = self.ui.document.file
   if not file or not self.settings:fileSyncEnabled(file) then return end
   if not self.settings:readBookSetting(file, "edition_id") then return end
 
@@ -617,7 +642,7 @@ function LivelibPlugin:onEndOfBook()
   if not mark_read then return end
 
   local do_mark = function()
-    self:_quickSetStatus(1, { silent = false, force = true, filename = file })
+    self:_quickSetStatus(1, { silent = false, filename = file })
   end
 
   if mark_read == "later" then
@@ -634,7 +659,9 @@ end
 
 --- Sync when KOReader Book Status changes (reading/complete/abandoned).
 function LivelibPlugin:onDocSettingsItemsChanged(file, doc_settings)
-  if not file or not doc_settings or not doc_settings.summary then return end
+  if not self.ui.document or not file then return end
+  if self.ui.document.file ~= file then return end
+  if not doc_settings or not doc_settings.summary then return end
   if not self.settings:fileSyncEnabled(file) then return end
   if not self.settings:readBookSetting(file, "edition_id") then return end
 
@@ -649,7 +676,7 @@ function LivelibPlugin:onDocSettingsItemsChanged(file, doc_settings)
   end
   if not status_code then return end
 
-  self:_quickSetStatus(status_code, { silent = false, force = true, filename = file })
+  self:_quickSetStatus(status_code, { silent = false, filename = file })
 end
 
 function LivelibPlugin:_tryAutolink()
