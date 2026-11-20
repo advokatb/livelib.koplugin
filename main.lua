@@ -51,6 +51,10 @@ function LivelibPlugin:init()
     autolink_pending = false,
     flushing_quotes = false,
     last_offline_notice_at = 0,
+    last_error_at = 0,
+    last_error = nil,
+    network_retry_scheduled = false,
+    network_retry_done = false,
   }
 
   local settings_path = ("%s/%s"):format(
@@ -260,6 +264,13 @@ function LivelibPlugin:_flushQuoteQueue()
 end
 
 function LivelibPlugin:_handleApiError(err)
+  local now = os.time()
+  if err == self.state.last_error and now - (self.state.last_error_at or 0) < 120 then
+    return
+  end
+  self.state.last_error = err
+  self.state.last_error_at = now
+
   if err == "session_expired" then
     UIManager:show(InfoMessage:new {
       text = _([[Livelib: session expired.
@@ -270,12 +281,29 @@ or in livelib_config.lua (DevTools → Application → Cookies → livelib.ru).
 You do not need to restart KOReader — changes apply immediately.]]),
       icon = "notice-warning",
     })
-  elseif err and err ~= "" then
+    return
+  end
+
+  -- Transient offline / Wi-Fi up without IP yet (common after resume). Never block reading.
+  if err == _("No network connection") then
+    logger.info("LiveLib: " .. tostring(err))
+    return
+  end
+
+  if err and err ~= "" then
     UIManager:show(InfoMessage:new {
       text = T(_("Livelib: %1"), tostring(err)),
       icon = "notice-warning",
     })
   end
+end
+
+function LivelibPlugin:_quietly(fn)
+  local prev = Api.quiet
+  Api.quiet = true
+  local ok, run_err = pcall(fn)
+  Api.quiet = prev
+  if not ok then error(run_err) end
 end
 
 function LivelibPlugin:onDispatcherRegisterActions()
@@ -434,11 +462,23 @@ function LivelibPlugin:_quickSetStatus(status_code, opts)
       status_inflight[lock] = nil
       return
     end
+    if not NetworkMgr:isConnected() then
+      status_inflight[lock] = nil
+      return
+    end
     local edition_id  = self.settings:readBookSetting(file, "edition_id")
     local userbook_id = self.settings:readBookSetting(file, "userbook_id") or 0
     local rating      = self:_resolveRating(file, status_code)
 
-    local result = Api:set_status(edition_id, status_code, userbook_id, rating)
+    local result
+    local function do_set()
+      result = Api:set_status(edition_id, status_code, userbook_id, rating)
+    end
+    if opts.silent then
+      self:_quietly(do_set)
+    else
+      do_set()
+    end
     status_inflight[lock] = nil
     if result and result.ok then
       local update = {
@@ -522,10 +562,33 @@ Set stars and try again.]]),
   return false
 end
 
+--- User actions may prompt for Wi‑Fi; background (`silent`) never enables the radio.
 function LivelibPlugin:_withWifi(callback, silent)
-  if NetworkMgr:isWifiOn() or NetworkMgr:isConnected() then
+  local function guarded()
     callback()
+  end
+
+  if NetworkMgr:isConnected() then
+    guarded()
     return true
+  end
+
+  -- Radio on but no route yet (typical right after resume) — wait, do not POST.
+  if NetworkMgr:isWifiOn() then
+    if NetworkMgr.scheduleConnectivityCheck then
+      NetworkMgr:scheduleConnectivityCheck(function()
+        if NetworkMgr:isConnected() then guarded() end
+      end)
+    else
+      UIManager:scheduleIn(4, function()
+        if NetworkMgr:isConnected() then guarded() end
+      end)
+    end
+    return true
+  end
+
+  if silent then
+    return false
   end
 
   if self.settings:enableWifiOnDemand()
@@ -536,19 +599,41 @@ function LivelibPlugin:_withWifi(callback, silent)
     NetworkMgr:scheduleConnectivityCheck(function()
       NetworkMgr.wifi_was_on = original_on
       G_reader_settings:saveSetting("wifi_was_on", original_on)
-      callback()
+      if NetworkMgr:isConnected() then guarded() end
     end)
     return true
   end
 
-  if silent then
-    return false
+  if NetworkMgr.willRerunWhenConnected then
+    if NetworkMgr:willRerunWhenConnected(guarded) then
+      return true
+    end
+  end
+  if NetworkMgr.runWhenConnected then
+    NetworkMgr:runWhenConnected(guarded)
+    return true
   end
 
-  NetworkMgr:promptWifiOn(function()
-    callback()
-  end)
+  NetworkMgr:promptWifiOn(guarded)
   return true
+end
+
+function LivelibPlugin:_scheduleNetworkRetry()
+  if self.state.network_retry_scheduled or self.state.network_retry_done then
+    return
+  end
+  self.state.network_retry_scheduled = true
+  UIManager:scheduleIn(5, function()
+    self.state.network_retry_scheduled = false
+    self.state.network_retry_done = true
+    if not self.ui.document then return end
+    if not NetworkMgr:isConnected() then return end
+    if self.state.ensure_remote_pending then
+      self:_runPendingEnsure()
+    elseif self.settings:quoteQueueSize() > 0 then
+      self:_flushQuoteQueue()
+    end
+  end)
 end
 
 function LivelibPlugin:_canAutoSync(filename, opts)
@@ -750,8 +835,9 @@ function LivelibPlugin:_runPendingEnsure()
     logger.dbg("LiveLib: auto-track wait — book not linked yet")
     return
   end
-  if not (NetworkMgr:isWifiOn() or NetworkMgr:isConnected()) then
+  if not NetworkMgr:isConnected() then
     logger.info("LiveLib: auto-track wait — no network yet")
+    self:_scheduleNetworkRetry()
     return
   end
   self.state.ensure_remote_pending = false
@@ -759,6 +845,7 @@ function LivelibPlugin:_runPendingEnsure()
 end
 
 function LivelibPlugin:onNetworkConnected()
+  self.state.network_retry_done = false
   self:_runPendingEnsure()
   UIManager:scheduleIn(1, function()
     self:_flushQuoteQueue()
@@ -766,8 +853,18 @@ function LivelibPlugin:onNetworkConnected()
 end
 
 function LivelibPlugin:onResume()
-  if self.settings:quoteQueueSize() > 0 then
+  if self.state.ensure_remote_pending and not NetworkMgr:isConnected() then
+    self:_scheduleNetworkRetry()
+  end
+  if self.settings:quoteQueueSize() == 0 then return end
+  if NetworkMgr:isConnected() then
     UIManager:scheduleIn(2, function()
+      self:_flushQuoteQueue()
+    end)
+    return
+  end
+  if NetworkMgr:isWifiOn() and NetworkMgr.scheduleConnectivityCheck then
+    NetworkMgr:scheduleConnectivityCheck(function()
       self:_flushQuoteQueue()
     end)
   end

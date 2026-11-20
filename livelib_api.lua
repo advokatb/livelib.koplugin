@@ -18,6 +18,7 @@ local STATUS_KEYS = {
 local LivelibApi = {
   settings = nil,
   on_error = nil,
+  quiet = nil,
 }
 
 --- Human-readable label for a status code.
@@ -44,6 +45,7 @@ function LivelibApi:_get_backend()
 
   backend.settings = self.settings
   backend.on_error = self.on_error
+  backend.quiet = self.quiet
 
   return backend
 end
@@ -74,6 +76,7 @@ end
 function LivelibApi:create_quote(edition_id, text, opts)
   LivelibApiLegacy.settings = self.settings
   LivelibApiLegacy.on_error = self.on_error
+  LivelibApiLegacy.quiet = self.quiet
   return LivelibApiLegacy:create_quote(edition_id, text, opts)
 end
 

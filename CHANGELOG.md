@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2] - 2026-11-19
+
+### Fixed
+- No more **Livelib: No network connection** dialog when the device wakes with Wi‑Fi
+  off or while the radio has no IP yet (auto-tracking waits for connectivity;
+  background sync uses quiet API).
+
 ## [0.7.1] - 2026-10-02
 
 ### Fixed

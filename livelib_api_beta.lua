@@ -48,6 +48,7 @@ end
 
 local function report_error(self, err)
   logger.warn("LiveLib API Beta error:", err)
+  if self.quiet then return end
   if self.on_error then self.on_error(err) end
 end
 
